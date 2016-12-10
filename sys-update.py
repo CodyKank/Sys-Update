@@ -21,15 +21,10 @@ class App_Window():
         self.content = ttk.Frame(self.content_frame)
         self.command_frame = ttk.Frame(parent, borderwidth=5)
         self.welcome_label = ttk.Label(self.content, text="Welcome to Sys-Update", anchor = CENTER)
-        
-        
-        # Perhaps check if this is a new update and if so then make different label.        
-        
+                
         self.text_label = ttk.Label(self.content, text="The last detected update was: {0}\n".format(self.currentSystem.get_last_update(self.user.name)) \
                                     + "Would you like to procced with an update?".center(70, ' '), anchor = CENTER)
         
-        
-   
         # Creating all of the buttons
         self.yes_button = ttk.Button(self.command_frame, text = "Update")
         self.no_button = ttk.Button(self.command_frame, text = "No")
@@ -37,10 +32,10 @@ class App_Window():
     
         # Binding all of the buttons (what they do)
         self.yes_button.bind("<Button-1>", self.proceed_update) # when left mouse click go to func proceed update
-        # No button
-        # Exit button
-        #### IF WORKING DO OTHERS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    
+        self.user_string = StringVar()
+        self.user_string.set('') # This is used to check if going straight to show info and no update!
+        self.no_button.bind("<Button-1>", self.show_info)
+
         #Putting the frames onto the root window (displaying them also)
         self.content_frame.grid(column=0, row=0)
         self.command_frame.grid(column=0, row=5, sticky="ew")
@@ -212,10 +207,13 @@ class App_Window():
         entry = self.sudo_pass.get()
         
         updateFrame = ttk.Frame(self.content_frame)
-
-        user_label = ttk.Label(updateFrame, text = "User: {0}".format(self.user.name), anchor=N)
+        self.user_string = StringVar()
+        self.user_string.set("User: {0}".format(self.user.name))
+        
+        user_label = ttk.Label(updateFrame, textvariable = self.user_string, anchor=N)
         # Making this a stringvar so it can be changed once the update is complete to signify that
-        self.completedSwitch.set('Update in progress. . .\nPlease do not close this window. . .')
+        self.completedSwitch.set('Update in progress. . .'.center(60,' ') + '\n' + \
+                                 'Please do not close this window. . .'.center(50,' '))
         completeLabel = ttk.Label(updateFrame, textvariable = self.completedSwitch, anchor=CENTER)
 
         # Recreating another screen to show, will replace self.content
@@ -236,10 +234,9 @@ class App_Window():
         self.no_button.bind("<Button-1>", None)
         self.yes_button.grid(column=0, row=2)
     
-            
         # Run through and check each possibility for the available distro's
         if self.currentSystem.system == 'solus':
-            self.currentSystem.updateSolus(entry)
+            proc = self.currentSystem.updateSolus(entry)
         elif self.currentSystem.system == 'rhel':
             # Need to implement
             pass
@@ -252,17 +249,74 @@ class App_Window():
         else:
             print('Error with current system type.')
             sys.exit(6)
-        
-        self.completedSwitch.set('Update complete!!')
-        self.completedSwitch.set('This should be all new content now. . .')
+        self.my_parent.update()
+        self.wait_patiently(proc)
+        self.completedSwitch.set('Update complete!!\n'.center(50,' ') + ' '.center(50,' ')+ '\n' + \
+                                 'Click Show Info to see information on your system. \nOr click Exit to close the program')
         # I guess just move right away to the update complete screen
         self.yes_button['state'] = 'enabled'
-        self.yes_button.bind("<Button-1>", None)
+        self.yes_button['text'] = 'Show Info'
+        self.yes_button.bind("<Button-1>", self.show_info)
         self.no_button['state'] = 'enabled'
-        self.no_button.bind("<Button-1>", None)
+        self.no_button.bind("<Button-1>", self.endLife)
+        self.no_button['text'] = 'Exit'
+        self.my_parent.update()
         return
+    #^-----------------------------------------------------update(self, event=None)
+    
+    def show_info(self, event=None):
+        """Function to show the user some info on their system. Info is found in Csys class.
+        Function will put the new content into a StringVar and refresh the screen."""
+        
+        if self.user_string == '':
+            updateFrame = ttk.Frame(self.content_frame)
+        
+            user_label = ttk.Label(updateFrame, textvariable = self.user_string, anchor=N)
+            # Making this a stringvar so it can be changed once the update is complete to signify that
+            self.completedSwitch = StringVar()
+            self.completedSwitch.set('')
+            completeLabel = ttk.Label(updateFrame, textvariable = self.completedSwitch, anchor=CENTER)
+
+            # Recreating another screen to show, will replace self.content
+            user_label.grid(column=0, columnspan=5, row=0, sticky=N)
+            separator = ttk.Separator(updateFrame, orient=HORIZONTAL)
+            separator.grid(column=0, row=1, columnspan=5, sticky=E+W)
+            completeLabel.grid(column = 0, columnspan=5, row=3, sticky=(E,W))
+        
+            # Replacing the content frame with the one just created above ^
+            self.content.destroy()
+            self.content = updateFrame
+            self.content.grid(column=0, row=0, sticky=(S,E,W))
         
         
+        self.user_string.set('Showing System Information')
+        format_str = (('CPU: {0}'.format(self.currentSystem.cpu_name).ljust(60,' ')) + '\n'+ \
+                                 ('Total Cores: {0}'.format(self.currentSystem.cores).ljust(60,' '))+ '\n' \
+                                + ('Total Memory: {0}'.format(self.currentSystem.total_mem).ljust(60,' '))+ '\n' \
+                                + ('Used Memory: {0}'.format(self.currentSystem.used_mem).ljust(60,' '))+ '\n'+ \
+                                 ('Cached Memory: {0}'.format(self.currentSystem.cached_mem).ljust(60,' '))+ '\n'+ \
+                                 ('Free Memory: {0}'.format(self.currentSystem.free_mem).ljust(60,' ')) )
+        self.completedSwitch.set(format_str)
+        self.yes_button['state'] = 'disabled'
+        self.yes_button['text'] = 'Show Info'
+        self.yes_button.bind("<Button-1>", None)
+        self.my_parent.update()
+        return
+
+        
+    def endLife(self, event=None):
+        """Function to end the root loop of tkinter to essentially server as the binding
+        of the exit buttons."""
+        self.my_parent.destroy()
+        sys.exit()
+        
+    def wait_patiently(self, proc, event=None):
+        """Function to help the timing of the GUI by forcing it to wait in
+        another function while the update is taking place."""
+        proc.wait()
+        time.sleep(.5)
+        return
+    #^----------------------------------------------------- wait_patiently(self, proc, event=None)  
 #^------------------------------------------------------------------------------------------------- Class App_Window
 
 class Csys():
@@ -273,16 +327,16 @@ class Csys():
         """Instantiation for the current system the script is running on."""
         self.system = self.get_system_type()
         cpu_proc = subprocess.getoutput("lscpu | grep 'Model name:'")
-        cpu_name = " ".join((cpu_proc.split()[2:]))
+        self.cpu_name = " ".join((cpu_proc.split()[2:]))
         cores_proc = subprocess.getoutput("lscpu | grep 'CPU(s):'")
-        cores = cores_proc.split()[1]
+        self.cores = cores_proc.split()[1]
         self.arch = subprocess.getoutput("uname -m")
         
         mem_free_proc = subprocess.getoutput("free -h")
         temp = mem_free_proc.split()
         self.total_mem = temp[7]
         self.used_mem = temp[8]
-        self.free_mem = temp[9]
+        self.free_mem = str(temp[9])
         self.cached_mem = temp[11]
     #^----------------------------------------------------- __init__(self)    
     
@@ -371,14 +425,14 @@ class Csys():
         """Function to update a solus system using the eopkg package manager. This PM does
         not allow seeing the available updates before updating, so to find out what needs to be updated
         it must be run all the way through!
-        Function will spawn a subprocess for updating Solus, and return once the process has completed."""
+        Function will spawn a subprocess for updating Solus, and return the process itself."""
         echo = subprocess.Popen(('echo', entry), stdout=subprocess.PIPE)
         
         update = subprocess.Popen(('sudo', '-S', 'eopkg', 'up'), stdin=echo.stdout)
-        # unlock the buttons and make the label say complete
+        # unlock the buttons and make the label say 
         
-        
-    
+        return update
+    #^----------------------------------------------------- updateSolus(self, entry)
 #^------------------------------------------------------------------------------------------------- Class Csys
 
 class Suser():
