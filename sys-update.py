@@ -33,7 +33,9 @@ class App_Window():
         # Binding all of the buttons (what they do)
         self.yes_button.bind("<Button-1>", self.proceed_update) # when left mouse click go to func proceed update
         self.user_string = StringVar()
-        self.user_string.set('') # This is used to check if going straight to show info and no update!
+        self.user_string.set('Empty') # This is used to check if going straight to show info and no update!
+        self.completedSwitch = StringVar()
+        self.completedSwitch.set('')
         self.no_button.bind("<Button-1>", self.show_info)
 
         #Putting the frames onto the root window (displaying them also)
@@ -101,7 +103,7 @@ class App_Window():
         user_frame = ttk.Frame(self.content_frame)
         if self.user.name != "root":    
             user_label = ttk.Label(user_frame, text = "User: {0}".format(self.user.name), anchor=N)
-            sudo_label = ttk.Label(user_frame, text = "Please enter the super-user (sudo) password:", anchor=CENTER)    
+            sudo_label = ttk.Label(user_frame, text = "Please enter the super-user (sudo) password:".center(66,' '), anchor=CENTER)    
             self.sudo_pass = StringVar()
             sudo_entry = Entry(user_frame, textvariable=self.sudo_pass, show='*', width=25)
             
@@ -148,9 +150,6 @@ class App_Window():
         Also calls the function which will display what is availabe to update."""
         
         
-        
-        # show available updates. State that there may be more system packages being updated than shown
-
         entry = self.sudo_pass.get()
         self.currentSystem.updateRepos(self.currentSystem.system, entry)
         
@@ -208,12 +207,12 @@ class App_Window():
         
         updateFrame = ttk.Frame(self.content_frame)
         self.user_string = StringVar()
-        self.user_string.set("User: {0}".format(self.user.name))
+        self.user_string.set("User: {0}".format(self.user.name).center(68,' '))
         
         user_label = ttk.Label(updateFrame, textvariable = self.user_string, anchor=N)
         # Making this a stringvar so it can be changed once the update is complete to signify that
-        self.completedSwitch.set('Update in progress. . .'.center(60,' ') + '\n' + \
-                                 'Please do not close this window. . .'.center(50,' '))
+        self.completedSwitch.set('Update in progress. . .'.center(68,' ') + '\n' + \
+                                 'Please do not close this window. . .'.center(68,' '))
         completeLabel = ttk.Label(updateFrame, textvariable = self.completedSwitch, anchor=CENTER)
 
         # Recreating another screen to show, will replace self.content
@@ -241,8 +240,7 @@ class App_Window():
             # Need to implement
             pass
         elif self.currentSystem.system == 'debian':
-            # Need to implement
-            pass
+            proc = self.currentSystem.updateDebian(entry)
         elif self.currentSystem.system == 'arch':
             # Need to implement
             pass
@@ -251,9 +249,10 @@ class App_Window():
             sys.exit(6)
         self.my_parent.update()
         self.wait_patiently(proc)
-        self.completedSwitch.set('Update complete!!\n'.center(50,' ') + ' '.center(50,' ')+ '\n' + \
-                                 'Click Show Info to see information on your system. \nOr click Exit to close the program')
-        # I guess just move right away to the update complete screen
+        self.completedSwitch.set('Update complete!!\n'.center(68,' ') + '\n' + \
+                                 'Click Show Info to see information on your system.'.center(68,' ') + '\n' + 'Or click Exit to close the program'.center(68,' '))
+        # Saving this into the updates for futrure reading
+        self.currentSystem.save_update(self.user.name)
         self.yes_button['state'] = 'enabled'
         self.yes_button['text'] = 'Show Info'
         self.yes_button.bind("<Button-1>", self.show_info)
@@ -268,13 +267,11 @@ class App_Window():
         """Function to show the user some info on their system. Info is found in Csys class.
         Function will put the new content into a StringVar and refresh the screen."""
         
-        if self.user_string == '':
+        if self.user_string.get() == 'Empty':
             updateFrame = ttk.Frame(self.content_frame)
         
             user_label = ttk.Label(updateFrame, textvariable = self.user_string, anchor=N)
             # Making this a stringvar so it can be changed once the update is complete to signify that
-            self.completedSwitch = StringVar()
-            self.completedSwitch.set('')
             completeLabel = ttk.Label(updateFrame, textvariable = self.completedSwitch, anchor=CENTER)
 
             # Recreating another screen to show, will replace self.content
@@ -287,22 +284,28 @@ class App_Window():
             self.content.destroy()
             self.content = updateFrame
             self.content.grid(column=0, row=0, sticky=(S,E,W))
+            self.no_button.bind("<Button-1>", self.endLife)
+            self.no_button['text'] = 'Exit'
+            self.my_parent.update()
         
         
         self.user_string.set('Showing System Information')
-        format_str = (('CPU: {0}'.format(self.currentSystem.cpu_name).ljust(60,' ')) + '\n'+ \
-                                 ('Total Cores: {0}'.format(self.currentSystem.cores).ljust(60,' '))+ '\n' \
-                                + ('Total Memory: {0}'.format(self.currentSystem.total_mem).ljust(60,' '))+ '\n' \
-                                + ('Used Memory: {0}'.format(self.currentSystem.used_mem).ljust(60,' '))+ '\n'+ \
-                                 ('Cached Memory: {0}'.format(self.currentSystem.cached_mem).ljust(60,' '))+ '\n'+ \
-                                 ('Free Memory: {0}'.format(self.currentSystem.free_mem).ljust(60,' ')) )
+        format_str = (('CPU: {0}'.format(self.currentSystem.cpu_name).ljust(68,' ')) + '\n'+ \
+                                 ('Total Cores: {0}'.format(self.currentSystem.cores).ljust(68,' '))+ '\n' \
+                                + ('Total Memory: {0}'.format(self.currentSystem.total_mem).ljust(68,' '))+ '\n' \
+                                + ('Used Memory: {0}'.format(self.currentSystem.used_mem).ljust(68,' '))+ '\n'+ \
+                                 ('Cached Memory: {0}'.format(self.currentSystem.cached_mem).ljust(68,' '))+ '\n'+ \
+                                 ('Free Memory: {0}'.format(self.currentSystem.free_mem).ljust(68,' ')) )
         self.completedSwitch.set(format_str)
         self.yes_button['state'] = 'disabled'
         self.yes_button['text'] = 'Show Info'
-        self.yes_button.bind("<Button-1>", None)
+        self.yes_button.bind("<Button-1>", self.doNothing)
         self.my_parent.update()
         return
 
+    def doNothing(self, event=None):
+        """Function to do absolutely nothing. Used to map hte buttons of tkinter to nothing."""
+        return
         
     def endLife(self, event=None):
         """Function to end the root loop of tkinter to essentially server as the binding
@@ -428,11 +431,18 @@ class Csys():
         Function will spawn a subprocess for updating Solus, and return the process itself."""
         echo = subprocess.Popen(('echo', entry), stdout=subprocess.PIPE)
         
-        update = subprocess.Popen(('sudo', '-S', 'eopkg', 'up'), stdin=echo.stdout)
-        # unlock the buttons and make the label say 
-        
+        update = subprocess.Popen(('sudo', '-S', 'eopkg', '-y', 'up'), stdin=echo.stdout)
         return update
     #^----------------------------------------------------- updateSolus(self, entry)
+    
+    def updateDebian(self, entry):
+        """Function to update a debian system. Starts the process for apt get to update the packages.
+        Function returns the process itself (object of subprocess module)"""
+        echo = subprocess.Popen(('echo', entry), stdout=subprocess.PIPE)
+        
+        update = subprocess.Popen(('sudo', '-S', 'apt-get', '-y', 'dist-upgrade'))
+        return update
+    
 #^------------------------------------------------------------------------------------------------- Class Csys
 
 class Suser():
