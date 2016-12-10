@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import sys, subprocess
+import sys, subprocess, time
 from tkinter import *
 from tkinter import ttk
 
@@ -102,17 +102,6 @@ class App_Window():
             # Make a text label stating that the user is root, but update anyway.
             pass
         
-        """ HI ! Read me please:
-        The update button should be changed to proceed or OK or Yes for this screen here. There needs to be an
-        Entry(show="*") widget created onto this page for the sudo password. Then, the proceed button should
-        go to a new function, and in that function the first thing to happen should be .get() the widget's contents
-        and then check what packages are available to update, display them, and begin the update hiding progress from user.
-        Possibly try making one of those status bars.
-        http://stackoverflow.com/questions/2416486/how-to-create-a-password-entry-field-using-tkinter
-        """
-        
-        
-        
         # Creating new content for content_frame!
         user_frame = ttk.Frame(self.content_frame)
         if self.user.name != "root":    
@@ -164,20 +153,20 @@ class App_Window():
         Also calls the function which will display what is availabe to update."""
         
         
-        # Spawn update process dependent on system type
         
         # show available updates. State that there may be more system packages being updated than shown
-        
-        # status bar, when completele show sys-info
+
         entry = self.sudo_pass.get()
         self.currentSystem.updateRepos(self.currentSystem.system, entry)
         
-        updateChoices = {'redhat':'Not impl yet', 'arch':'Not impl yet', 'debian':self.currentSystem.get_debian_updates()}
+        updateChoices = {'redhat':'Not impl yet', 'arch':'Not impl yet', 'debian':self.currentSystem.get_debian_updates(),\
+                         'solus':'Viewing updatabled packages is not available in Solus!'}
         error = 'Error'
         
         availUpdates = updateChoices.get(self.currentSystem.system, error)
         if availUpdates == error:
             print('Error in getting update choices')
+            print('Perhaps your operating system or Linux distribution is unsupported. See\nREADME.md for more details.')
             sys.exit(5)
         elif availUpdates == '':
             availUpdates = 'System is up to date.'
@@ -187,15 +176,92 @@ class App_Window():
             # This will need to be taken out when everything is done!
             return
         
-        # Make a new screen showing the available updates, ask if the user wants to update and the yes button
-        # will start the actual update process. See about making a status bar here.
+        updateFrame = ttk.Frame(self.content_frame)
+
+        user_label = ttk.Label(updateFrame, text = "User: {0}".format(self.user.name), anchor=N)
+        availLabel = ttk.Label(updateFrame, text = availUpdates, anchor=CENTER)
+        # Making this a stringvar so it can be changed once the update is complete to signify that
+        self.completedSwitch = StringVar()
+        self.completedSwitch.set('\n\nWould you like to proceed with an update?')
+        completeLabel = ttk.Label(updateFrame, textvariable = self.completedSwitch, anchor=CENTER)
+
+        # Recreating another screen to show, will replace self.content
+        user_label.grid(column=0, columnspan=5, row=0, sticky=N)
+        separator = ttk.Separator(updateFrame, orient=HORIZONTAL)
+        separator.grid(column=0, row=1, columnspan=5, sticky=E+W)
+        availLabel.grid(column = 0, columnspan=5, row=2, sticky=(E,W))
+        completeLabel.grid(column = 0, columnspan=5, row=3, sticky=(E,W))
         
+        # Replacing the content frame with the one just created above ^
+        self.content.destroy()
+        self.content = updateFrame
+        self.content.grid(column=0, row=0, sticky=(S,E,W))
         
-        
-        
-        
-        
+        # Changing appearance and use of the Yes button, which is on bottom left of screen.
+        self.yes_button = ttk.Button(self.command_frame, text = "Proceed")
+        self.yes_button.bind("<Button-1>", self.update)
+        self.yes_button.grid(column=0, row=2)
     #^----------------------------------------------------- start_update(self, event=None)
+    
+    def update(self, event=None):
+        """Function to actually begin the updating process. Will display to the user that it is
+        updating the system and to not close the window. Then it will spawn a process to update the
+        system dependent on what type the system is."""
+        
+        # Entry is the root password
+        entry = self.sudo_pass.get()
+        
+        updateFrame = ttk.Frame(self.content_frame)
+
+        user_label = ttk.Label(updateFrame, text = "User: {0}".format(self.user.name), anchor=N)
+        # Making this a stringvar so it can be changed once the update is complete to signify that
+        self.completedSwitch.set('Update in progress. . .\nPlease do not close this window. . .')
+        completeLabel = ttk.Label(updateFrame, textvariable = self.completedSwitch, anchor=CENTER)
+
+        # Recreating another screen to show, will replace self.content
+        user_label.grid(column=0, columnspan=5, row=0, sticky=N)
+        separator = ttk.Separator(updateFrame, orient=HORIZONTAL)
+        separator.grid(column=0, row=1, columnspan=5, sticky=E+W)
+        completeLabel.grid(column = 0, columnspan=5, row=3, sticky=(E,W))
+        
+        # Replacing the content frame with the one just created above ^
+        self.content.destroy()
+        self.content = updateFrame
+        self.content.grid(column=0, row=0, sticky=(S,E,W))
+        
+        # Changing appearance and use of the Yes button, which is on bottom left of screen.
+        self.yes_button = ttk.Button(self.command_frame, text = "Proceed", state='disabled')
+        self.yes_button.bind("<Button-1>", None)
+        self.no_button['state'] = 'disabled'
+        self.no_button.bind("<Button-1>", None)
+        self.yes_button.grid(column=0, row=2)
+    
+            
+        # Run through and check each possibility for the available distro's
+        if self.currentSystem.system == 'solus':
+            self.currentSystem.updateSolus(entry)
+        elif self.currentSystem.system == 'rhel':
+            # Need to implement
+            pass
+        elif self.currentSystem.system == 'debian':
+            # Need to implement
+            pass
+        elif self.currentSystem.system == 'arch':
+            # Need to implement
+            pass
+        else:
+            print('Error with current system type.')
+            sys.exit(6)
+        
+        self.completedSwitch.set('Update complete!!')
+        self.completedSwitch.set('This should be all new content now. . .')
+        # I guess just move right away to the update complete screen
+        self.yes_button['state'] = 'enabled'
+        self.yes_button.bind("<Button-1>", None)
+        self.no_button['state'] = 'enabled'
+        self.no_button.bind("<Button-1>", None)
+        return
+        
         
 #^------------------------------------------------------------------------------------------------- Class App_Window
 
@@ -226,6 +292,8 @@ class Csys():
         and others as Arch, and Xubuntu, Ubuntu, and others as Debian, and Scientific, CentOs, Fedora
         and others  as Red Hat. Method returns the base system as a string."""
         
+        # If this is a rhel system this command will fail. Need to test to see what happens!
+        # I know we need to have "cat /etc/redhat-release"
         system_id = (subprocess.getoutput("cat /etc/os-release | grep 'ID='")).split('\n')[0]
         system_id = system_id.replace('"','') # Some systems produce (")'s  others do not!
         system_id = system_id[system_id.find('=') + 1:]
@@ -233,7 +301,7 @@ class Csys():
         # switch statement wanna-be
         distro_choices = {'fedora': 'rhel', 'centos': 'rhel', 'scientific': 'rhel', 'rhel': 'rhel', \
                           'debian': 'debian', 'ubuntu': 'debian', 'xubuntu': 'debian', 'galliumos': 'debian', \
-                          'arch': 'arch', 'antergos': 'arch', 'manjaro': 'arch'}
+                          'arch': 'arch', 'antergos': 'arch', 'manjaro': 'arch', 'solus':'solus'}
         default = 'Unknown'
         system = distro_choices.get(system_id, default)
         if system == default:
@@ -242,7 +310,7 @@ class Csys():
             system_id = system_id.replace('"', '')
             
         return system
-    #^----------------------------------------------------- find_system_type()
+    #^----------------------------------------------------- find_system_type(self)
     
     def get_last_update(self, user_name):
         """Method to obtain previous update, path is specified as update_file.
@@ -257,7 +325,7 @@ class Csys():
         except FileNotFoundError:
             last_update = "This is the first update!"
         return last_update.rstrip()
-    #^----------------------------------------------------- get_last_update()
+    #^----------------------------------------------------- get_last_update(self, user_name)
     
     def save_update(self, user_name):
         """If the system is updated, the time and date will be saved to a file, able to be viewed again"""
@@ -267,7 +335,7 @@ class Csys():
         file_ob.write(str(date))
         file_ob.close()
         return
-    #^----------------------------------------------------- save_update()
+    #^----------------------------------------------------- save_update(self, user_name)
     
     def updateRepos(self, system, entry):
         """Function to update the repositories of the current system if it is a system that supports
@@ -283,8 +351,10 @@ class Csys():
         elif system == 'rhel':
             ## Same as above
             pass
+        elif system == 'solus':
+            proc = subprocess.Popen(('sudo', '-S', 'eopkg', 'ur'), stdin=echo.stdout)
         return
-    
+    #^----------------------------------------------------- updateRepos(self, system, entry)
     
     def get_debian_updates(self):
         """Function to obtain what packages are available to update on debian based systems.
@@ -295,8 +365,20 @@ class Csys():
             # If there is this garbarge in it, delete it
             apt_list = apt_list[:apt_list.find('N: There are:')]
         return apt_list
+    #^----------------------------------------------------- get_debian_updates(self)
+    
+    def updateSolus(self, entry):
+        """Function to update a solus system using the eopkg package manager. This PM does
+        not allow seeing the available updates before updating, so to find out what needs to be updated
+        it must be run all the way through!
+        Function will spawn a subprocess for updating Solus, and return once the process has completed."""
+        echo = subprocess.Popen(('echo', entry), stdout=subprocess.PIPE)
+        
+        update = subprocess.Popen(('sudo', '-S', 'eopkg', 'up'), stdin=echo.stdout)
+        # unlock the buttons and make the label say complete
         
         
+    
 #^------------------------------------------------------------------------------------------------- Class Csys
 
 class Suser():
