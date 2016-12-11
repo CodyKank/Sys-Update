@@ -157,6 +157,7 @@ class App_Window():
                          'solus':'Viewing updatabled packages is not available in Solus!'}
         error = 'Error'
         
+        
         availUpdates = updateChoices.get(self.currentSystem.system, error)
         if availUpdates == error:
             print('Error in getting update choices')
@@ -172,7 +173,7 @@ class App_Window():
         
         updateFrame = ttk.Frame(self.content_frame)
 
-        user_label = ttk.Label(updateFrame, text = "User: {0}".format(self.user.name), anchor=N)
+        user_label = ttk.Label(updateFrame, text = "Packages available for updating:".center(68,' '), anchor=N)
         availLabel = ttk.Label(updateFrame, text = availUpdates, anchor=CENTER)
         # Making this a stringvar so it can be changed once the update is complete to signify that
         self.completedSwitch = StringVar()
@@ -418,10 +419,12 @@ class Csys():
         Returns a large formatted string containing what packages can be updated."""
         
         apt_list = subprocess.getoutput("apt list --upgradeable").replace(',','')
-        if apt_list.find('N: There are') != -1:
-            # If there is this garbarge in it, delete it
-            apt_list = apt_list[:apt_list.find('N: There are:')]
-        return apt_list
+        
+        apt_list = apt_list[apt_list.find('Listing...') + 10 :]
+        apt_list=apt_list.split()
+        for item in apt_list:
+            item = item[:item.find('/')]
+        return apt_list[0]
     #^----------------------------------------------------- get_debian_updates(self)
     
     def updateSolus(self, entry):
