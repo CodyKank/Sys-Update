@@ -153,7 +153,7 @@ class App_Window():
         entry = self.sudo_pass.get()
         self.currentSystem.updateRepos(self.currentSystem.system, entry)
         
-        updateChoices = {'redhat':'Not impl yet', 'arch':'Not impl yet', 'debian':self.currentSystem.get_debian_updates(),\
+        updateChoices = {'rhel':self.currentSystem.get_rhel_updates(), 'arch':'Not impl yet', 'debian':self.currentSystem.get_debian_updates(),\
                          'solus':'Viewing updatabled packages is not available in Solus!'}
         error = 'Error'
         
@@ -169,7 +169,8 @@ class App_Window():
         elif availUpdates == 'Not impl yet':
             # Don't want to do anything yet if the function isn't created!
             # This will need to be taken out when everything is done!
-            return
+            availUpdates = 'Your system is not supported...yet!!'
+            
         
         updateFrame = ttk.Frame(self.content_frame)
 
@@ -238,8 +239,7 @@ class App_Window():
         if self.currentSystem.system == 'solus':
             proc = self.currentSystem.updateSolus(entry)
         elif self.currentSystem.system == 'rhel':
-            # Need to implement
-            pass
+            proc = self.currentSystem.updateRhel(entry)
         elif self.currentSystem.system == 'debian':
             proc = self.currentSystem.updateDebian(entry)
         elif self.currentSystem.system == 'arch':
@@ -350,14 +350,13 @@ class Csys():
         and others as Arch, and Xubuntu, Ubuntu, and others as Debian, and Scientific, CentOs, Fedora
         and others  as Red Hat. Method returns the base system as a string."""
         
-        # If this is a rhel system this command will fail. Need to test to see what happens!
-        # I know we need to have "cat /etc/redhat-release"
+        
         system_id = (subprocess.getoutput("cat /etc/os-release | grep 'ID='")).split('\n')[0]
         system_id = system_id.replace('"','') # Some systems produce (")'s  others do not!
         system_id = system_id[system_id.find('=') + 1:]
         
         # switch statement wanna-be
-        distro_choices = {'fedora': 'rhel', 'centos': 'rhel', 'scientific': 'rhel', 'rhel': 'rhel', \
+        distro_choices = {'fedora': 'rhel', 'centos': 'rhel', 'scientific': 'rhel', 'redhat': 'rhel', \
                           'debian': 'debian', 'ubuntu': 'debian', 'xubuntu': 'debian', 'galliumos': 'debian', \
                           'arch': 'arch', 'antergos': 'arch', 'manjaro': 'arch', 'solus':'solus'}
         default = 'Unknown'
@@ -407,12 +406,23 @@ class Csys():
             # Need to add a process similiar to above
             pass
         elif system == 'rhel':
-            ## Same as above
+            #proc = subprocess.Popen(('su', '-C', 'yum', 'update'), stdin=echo.stdout)
             pass
         elif system == 'solus':
             proc = subprocess.Popen(('sudo', '-S', 'eopkg', 'ur'), stdin=echo.stdout)
         return
     #^----------------------------------------------------- updateRepos(self, system, entry)
+    
+    def get_rhel_updates(self):
+        """Function to obtain what packages are available for updating from the yum
+        package manager."""
+        
+        yum_list = subprocess.getoutput("yum list updates").split('\n')
+        yum_list = yum_list[7:]
+        update_list = []
+        for package in yum_list:
+            update_list.append(package.split()[0])
+        return '\n'.join(update_list)
     
     def get_debian_updates(self):
         """Function to obtain what packages are available to update on debian based systems.
@@ -443,7 +453,16 @@ class Csys():
         Function returns the process itself (object of subprocess module)"""
         echo = subprocess.Popen(('echo', entry), stdout=subprocess.PIPE)
         
-        update = subprocess.Popen(('sudo', '-S', 'apt-get', '-y', 'dist-upgrade'))
+        update = subprocess.Popen(('sudo', '-S', 'apt-get', '-y', 'dist-upgrade'), stdin=echo.stdout)
+        return update
+    
+    def updateRhel(self, entry):
+        """Function to start the process of updating a rhel based system with yum as the package
+        manager."""
+        
+        echo = subprocess.Popen(('echo', entry), stdout=subprocess.PIPE)
+        
+        update = subprocess.Popen(('sudo', '-S', 'yum', '-y', 'update'), stdin=echo.stdout)
         return update
     
 #^------------------------------------------------------------------------------------------------- Class Csys
